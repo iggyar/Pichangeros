@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "iggy666thepro@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isFieldOwner(ownerId) {
+      return isAuthenticated() && request.auth.uid == ownerId;
+    }
+
+    // Users
+    match /users/{userId} {
+      function isValidUser() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['uid', 'role', 'createdAt']) &&
+               data.uid == userId &&
+               data.role in ['user', 'owner', 'admin'];
+      }
+      
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && 
+                       isOwner(userId) && 
+                       isValidUser() && 
+                       (request.resource.data.role in ['user', 'owner'] || isAdmin());
+      allow update: if isAuthenticated() && 
+                       isValidUser() && 
+                       (
+                         (isOwner(userId) && request.resource.data.role in ['user', 'owner']) || 
+                         isAdmin()
+                       );
+    }
+
+    // Fields
+    match /fields/{fieldId} {
+      function isValidField() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['name', 'pricePerHour', 'location', 'ownerId', 'status']) &&
+               data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+               data.pricePerHour is number && data.pricePerHour >= 0 &&
+               (data.ownerId == request.auth.uid || isAdmin()) &&
+               data.status in ['approved', 'pending', 'rejected', 'inactive'];
+      }
+
+      allow read: if resource.data.status == 'approved' || isFieldOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isAuthenticated() && 
+                       isValidField() && 
+                       (request.resource.data.status == 'pending' || 
+                        (request.resource.data.status == 'approved' && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.identityVerified == true) || 
+                        isAdmin());
+      allow update: if isAuthenticated() && 
+                       isValidField() && 
+                       (
+                         (isFieldOwner(resource.data.ownerId) &&
+                          request.resource.data.ownerId == resource.data.ownerId &&
+                          (request.resource.data.status == resource.data.status || 
+                           request.resource.data.status == 'pending' ||
+                           (request.resource.data.status == 'approved' && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.identityVerified == true)) &&
+                          (!('rating' in request.resource.data) || request.resource.data.rating == resource.data.rating) &&
+                          (!('reviews' in request.resource.data) || request.resource.data.reviews == resource.data.reviews))
+                         || isAdmin()
+                       );
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      function isValidBooking() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['userId', 'fieldId', 'ownerId', 'date', 'timeSlot', 'price', 'securityCode', 'status']) &&
+               data.userId is string &&
+               data.fieldId is string &&
+               data.ownerId is string &&
+               data.status in ['active', 'completed', 'cancelled'];
+      }
+
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.ownerId || isAdmin());
+      allow create: if isAuthenticated() && 
+                       isValidBooking() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+                       isValidBooking() && 
+                       (
+                         (request.auth.uid == resource.data.ownerId && request.resource.data.userId == resource.data.userId && request.resource.data.fieldId == resource.data.fieldId) ||
+                         (request.auth.uid == resource.data.userId && request.resource.data.status == 'cancelled') ||
+                         isAdmin()
+                       );
+    }
+  }
+}

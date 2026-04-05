@@ -1,0 +1,22 @@
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import firebaseConfigJson from "../../firebase-applet-config.json";
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (firebaseConfigJson as any).storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (firebaseConfigJson as any).messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+export const googleProvider = new GoogleAuthProvider();
+export const facebookProvider = new FacebookAuthProvider();
+export const appleProvider = new OAuthProvider('apple.com');
