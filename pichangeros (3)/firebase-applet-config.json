@@ -1,10 +1,8 @@
 {
-  "projectId": "gen-lang-client-0375496658",
-  "appId": "1:928928650855:web:4e534af6640963707fa6c2",
-  "apiKey": "AIzaSyAjpddntVozjg_lPAprKdZqfMtgw9xSHZc",
-  "authDomain": "gen-lang-client-0375496658.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-722a8ac5-ffae-4f35-9a2b-aa9c1079a445",
-  "storageBucket": "gen-lang-client-0375496658.firebasestorage.app",
-  "messagingSenderId": "928928650855",
-  "measurementId": ""
+  "projectId": "pichangeros-340c0",
+  "appId": "1:1095538767041:web:f0380745bd19fa8a091040",
+  "apiKey": "AIzaSyALXQUUyP8kAtaiqr1HMicJYmla8l72g5k",
+  "authDomain": "pichangeros-340c0.firebaseapp.com",
+  "storageBucket": "pichangeros-340c0.firebasestorage.app",
+  "messagingSenderId": "1095538767041"
 }
