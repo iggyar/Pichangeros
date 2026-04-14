@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "owner", "admin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "role", "createdAt"]
+    },
+    "Field": {
+      "title": "Field",
+      "description": "Football field for rent",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "pricePerHour": { "type": "number" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "rating": { "type": "number" },
+        "reviews": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["approved", "pending", "rejected", "inactive"] }
+      },
+      "required": ["name", "pricePerHour", "location", "ownerId", "status"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A reservation for a field",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "fieldId": { "type": "string" },
+        "fieldName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "price": { "type": "number" },
+        "securityCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["paid", "held", "released"] },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "fieldId", "ownerId", "date", "timeSlot", "price", "securityCode", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/fields/{fieldId}": {
+      "schema": { "$ref": "#/entities/Field" },
+      "description": "Football fields"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Field reservations"
+    }
+  }
+}
