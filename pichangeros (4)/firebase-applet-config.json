@@ -1,9 +1,9 @@
 {
-  apiKey: "AIzaSyALXQUUyP8kAtaiqr1HMicJYmla8l72g5k",
-  authDomain: "pichangeros-340c0.firebaseapp.com",
-  projectId: "pichangeros-340c0",
-  storageBucket: "pichangeros-340c0.firebasestorage.app",
-  messagingSenderId: "1095538767041",
-  appId: "1:1095538767041:web:f0380745bd19fa8a091040",
-  measurementId: "G-H7TSM7LLG7"
+  "apiKey": "AIzaSyALXQUUyP8kAtaiqr1HMicJYmla8l72g5k",
+  "authDomain": "pichangeros-340c0.firebaseapp.com",
+  "projectId": "pichangeros-340c0",
+  "storageBucket": "pichangeros-340c0.firebasestorage.app",
+  "messagingSenderId": "1095538767041",
+  "appId": "1:1095538767041:web:f0380745bd19fa8a091040",
+  "measurementId": "G-H7TSM7LLG7"
 }
