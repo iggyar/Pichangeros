@@ -1,0 +1,5 @@
+{
+  "name": "Pichangeros",
+  "description": "Plataforma para encontrar y reservar canchas de fútbol en Lima, Perú.",
+  "requestFramePermissions": ["geolocation"]
+}

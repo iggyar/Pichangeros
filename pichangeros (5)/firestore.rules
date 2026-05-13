@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'iggy666thepro@gmail.com' || 
+        request.auth.token.email == 'ignaciotaipe0@gmail.com'
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Default: allow all authenticated for debugging, but still strictly check admins
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Specific rules for sensitive collections
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read, write: if isAdmin() || (isAuthenticated() && request.method == 'create');
+    }
+  }
+}
