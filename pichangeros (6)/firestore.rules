@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // 1. GLOBAL HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAuthUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.get('email', '') == 'iggy666thepro@gmail.com' || 
+        request.auth.token.get('email', '') == 'ignaciotaipe0@gmail.com'
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. VALIDATION HELPERS
+    // -------------------------------------------------------------------------
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email', 'role']) &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['player', 'owner', 'admin'];
+    }
+
+    function isValidField(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'status']) &&
+             data.ownerId == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             data.status in ['pending', 'approved', 'rejected', 'inactive'];
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['userId', 'fieldId', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.status in ['active', 'completed', 'cancelled'];
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. COLLECTION RULES
+    // -------------------------------------------------------------------------
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isAuthUser(userId) && isValidUser(incoming());
+      allow update: if (isAuthUser(userId) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly([
+                        'displayName', 'phoneNumber', 'businessName', 'businessId', 
+                        'district', 'favoritePosition', 'paymentMethod', 'paymentAccount', 'photoURL',
+                        'identityDocumentUrl', 'identityVerified', 'role', 'updatedAt'
+                      ])) || isAdmin();
+    }
+
+    // Fields (Courts)
+    match /fields/{fieldId} {
+      allow read: if true;
+      allow create: if isSignedIn() && (isValidField(incoming()) || isAdmin());
+      allow update: if (isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly([
+                        'name', 'description', 'pricePerHourDay', 'pricePerHourNight', 
+                        'pricePerHour', 'numberOfCourts', 'location', 'surfaceType', 
+                        'roofType', 'lighting', 'fieldSize', 'extras', 'status', 
+                        'rejectionReason', 'updatedAt', 'photos', 'openTime', 'closeTime',
+                        'scheduleData', 'defaultOpenTime', 'defaultCloseTime', 'price',
+                        'capacity', 'sport', 'district', 'address'
+                      ]));
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        existing().userId == request.auth.uid || 
+        existing().ownerId == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidBooking(incoming());
+      allow update: if (isSignedIn() && (
+        (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rating', 'comment', 'updatedAt'])) ||
+        (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'updatedAt']))
+      )) || isAdmin();
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.ownerId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    // Settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Support Tickets
+    match /support_tickets/{ticketId} {
+      allow read: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+    }
+
+    // Chats
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin());
+      allow create: if isSignedIn();
+      
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants || isAdmin());
+      }
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+    }
+
+    // Reports
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. GLOBAL DENY (MUST BE LAST)
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
