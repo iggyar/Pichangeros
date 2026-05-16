@@ -1,0 +1,192 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "owner", "admin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "role", "createdAt"]
+    },
+    "Field": {
+      "title": "Field",
+      "description": "Football field for rent",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "pricePerHour": { "type": "number" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "rating": { "type": "number" },
+        "reviews": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["approved", "pending", "rejected", "inactive"] }
+      },
+      "required": ["name", "pricePerHour", "location", "ownerId", "status"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A reservation for a field",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "fieldId": { "type": "string" },
+        "fieldName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "price": { "type": "number" },
+        "securityCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["paid", "held", "released"] },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "fieldId", "ownerId", "date", "timeSlot", "price", "securityCode", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User review for a field",
+      "type": "object",
+      "properties": {
+        "fieldId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isReported": { "type": "boolean" }
+      },
+      "required": ["fieldId", "userId", "rating", "createdAt"]
+    },
+    "PaymentMethod": {
+      "title": "Payment Method",
+      "description": "Saved user card",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "cardToken": { "type": "string" },
+        "last4": { "type": "string" },
+        "brand": { "type": "string" },
+        "expiry": { "type": "string" },
+        "isDefault": { "type": "boolean" }
+      },
+      "required": ["userId", "last4", "brand", "expiry"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Report for inappropriate content",
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["review", "user", "field"] },
+        "reporterId": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["targetId", "targetType", "reporterId", "reason", "status", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A conversation between two users",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["participants", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message within a chat",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    },
+    "SupportTicket": {
+      "title": "Support Ticket",
+      "description": "A user support request",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "topic": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "closed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "topic", "message", "status", "createdAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "commission": { "type": "number" },
+        "maintenanceMode": { "type": "boolean" },
+        "cancelationPolicy": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/fields/{fieldId}": {
+      "schema": { "$ref": "#/entities/Field" },
+      "description": "Football fields"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Field reservations"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "User reviews for fields"
+    },
+    "/paymentMethods/{pmId}": {
+      "schema": { "$ref": "#/entities/PaymentMethod" },
+      "description": "Saved payment methods"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Content reports"
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Conversations"
+    },
+    "/chats/{chatId}/messages/{msgId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages in a chat"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "Support tickets"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Global settings"
+    }
+  }
+}

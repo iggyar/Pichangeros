@@ -1,0 +1,183 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. GLOBAL HELPERS
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAuthUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Admin is a user with role 'admin' in the users collection
+    // We also bootstrap the user who reported the errors as admin
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'iggy666thepro@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'iggy666thepro@gmail.com';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 2. ENTITY VALIDATORS
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email', 'role']) &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['user', 'owner', 'admin'] &&
+             (data.role != 'admin' || isSuperAdmin()); // Only superadmin can make others admins
+    }
+
+    function isValidField(data) {
+      return data.keys().hasAll(['name', 'pricePerHour', 'ownerId', 'status']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.pricePerHour is number &&
+             data.ownerId == request.auth.uid &&
+             data.status in ['approved', 'pending', 'rejected', 'inactive'];
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['userId', 'fieldId', 'ownerId', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.status in ['pending', 'active', 'completed', 'cancelled'];
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['fieldId', 'userId', 'rating']) &&
+             data.userId == request.auth.uid &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             (!data.keys().contains('comment') || (data.comment is string && data.comment.size() <= 1000));
+    }
+
+    function isValidPaymentMethod(data) {
+      return data.keys().hasAll(['userId', 'last4', 'brand']) &&
+             data.userId == request.auth.uid &&
+             data.last4 is string && data.last4.size() == 4;
+    }
+
+    // 3. COLLECTION RULES
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn(); // Allow profile lookups (e.g. chat info)
+      allow list: if isAdmin();
+      allow create: if isAuthUser(userId) && isValidUser(incoming());
+      allow update: if (isAuthUser(userId) || isAdmin()) && (
+        (isAuthUser(userId) && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'phoneNumber', 'district', 'favoritePosition', 'photoURL', 'role', 'updatedAt',
+          'businessName', 'businessId', 'paymentMethod', 'paymentAccount', 'identityDocumentUrl', 'identityVerified'
+        ]) && (incoming().role == existing().role || incoming().role != 'admin' || isSuperAdmin())) ||
+        (isAdmin())
+      );
+    }
+
+    // Fields Collection
+    match /fields/{fieldId} {
+      allow list: if true; // Public can search fields
+      allow get: if true;
+      allow create: if isSignedIn() && isValidField(incoming());
+      allow update: if (isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin())) && (
+        (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'description', 'pricePerHour', 'price', 'location', 'photos', 'fieldSize', 
+          'surfaceType', 'roofType', 'lighting', 'numberOfCourts', 'openTime', 'closeTime', 
+          'district', 'address', 'updatedAt', 'latitude', 'longitude'
+        ]) && incoming().ownerId == existing().ownerId) ||
+        (isAdmin())
+      );
+    }
+
+    // Bookings Collection
+    match /bookings/{bookingId} {
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.ownerId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidBooking(incoming());
+      allow update: if (isSignedIn() && (existing().userId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin())) && (
+        (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rating', 'comment', 'updatedAt']) && incoming().userId == existing().userId) ||
+        (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'pagoAlDueno', 'updatedAt', 'estadoPago', 'paymentStatus', 'checkInCode']) && incoming().ownerId == existing().ownerId) ||
+        (isAdmin())
+      );
+    }
+
+    // Reviews Collection
+    match /reviews/{reviewId} {
+      allow list: if true;
+      allow get: if true;
+      allow create: if isSignedIn() && isValidReview(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+    }
+
+    // Payment Methods Collection
+    match /paymentMethods/{pmId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidPaymentMethod(incoming());
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Chats Collection
+    match /chats/{chatId} {
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow get: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin());
+      allow create: if isSignedIn() && (request.auth.uid in incoming().participants);
+      allow update: if isSignedIn() && (request.auth.uid in existing().participants || isAdmin());
+      
+      match /messages/{messageId} {
+        allow list: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants || isAdmin());
+        allow create: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+      }
+    }
+
+    // Support Tickets Collection
+    match /support_tickets/{ticketId} {
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+    }
+
+    // Reports Collection
+    match /reports/{reportId} {
+      allow list: if isAdmin();
+      allow get: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+    }
+
+    // Settings Collection
+    match /settings/{docId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}
